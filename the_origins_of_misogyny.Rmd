@@ -1,0 +1,111 @@
+# Read Me
+For replicability: I use the "groundhog" package. When there are conflicting package versions, Groundhog asks you to restart the session and load/install the package version we used in the original analysis. If there are multiple conflicts, you will need to restart the session multiple times. That said, to get xgboost to run on multiple cores, you may want to install it separately, following these instructions: <https://xgboost.readthedocs.io/en/latest/install.html>
+
+"here" handles filepath issues. Just save the replication files and data files in the same folder.
+
+For transparency: Whenever a seed is set, it is set to 007, MI6 won't let us say why. When 'researcher degrees of freedom' are employed, we aim to explicitly state and justify choices taken. 
+
+
+# Load Packages.
+rlang can be difficult on a mac, you will likely need to work on the command line before rlang will work, as discussed here: https://stackoverflow.com/questions/52522565/git-is-not-working-after-macos-update-xcrun-error-invalid-active-developer-pa 
+
+windows users may need to:
+if(!require("installr")) install.packages('installr')
+library("installr")
+install.Rtools()
+```{r include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE)
+
+# install.packages('groundhog')
+library(groundhog)
+
+groundhog.date <- '2022-07-15'
+# meta.groundhog(groundhog.date) # groundhog the groundhog package.
+
+groundhog.library(c('gower', 'hardhat', 'ipred'), groundhog.date) # caret needs a few packages installed first.
+pkgs <- c("factoextra", "rlang", "modeest", 'readxl', 'haven', 'viridis',  "LongituRF", 'SHAPforxgboost', 'devtools', 'caret', 'ggplot2', 'dplyr', 'xtable', 'here', 'aricode', 'mclust', 'cluster', 'stargazer', 'Ckmeans.1d.dp', 'rpart.plot', "countrycode",  'splitstackshape', "RANN", "REEMtree",  "vita", 'psych', 'maps', 'xgboost', "parallelly", "doParallel", "e1071", "ranger",  'RJSONIO', 'recipes','gpboost')
+groundhog.library(pkgs,groundhog.date) # R version 4.2
+
+rm(list = ls())
+
+# Check that the working directory is correct (you should not need to change this):
+here::i_am('the_origins_of_misogyny.Rmd')
+```
+
+# Run this to extract intermediary files. 
+  source() files can be run independently, but should be run sequentially.
+```{r messages=FALSE}
+# Import Heritage Variables. (Imports from stata, removes duplicates and variables with near-zero-variance)
+source(here("code/import_heritage.R"))
+
+# Clustering. (clusters the heritage variables, 'rand_index_permuting.RData' shows cluster quality + stability)
+source(here("code/clustering.R"))
+
+# Individual characteristics. (merges the wvs and the heritage data)
+source(here("code/individual_characteristics.R"))
+
+# XGBoost benchmark. (Comparison point: XGBoost w/ all the features)
+# source(here("code/xgboost_benchmark.R")) # uncomment this line.
+
+# XGBoost. (main analysis, conducts a grid search. use a fast machine, will take hours and more likely, days)
+# source(here('code/xgboost_main.R')) # uncomment this line.
+
+# Shapley Values. (shapley values for xgboost)
+source(here("code/shapley_values.R"))
+
+# Maps, dendrogram (map the most important heritage variables, create a table of countries by node)
+source(here("code/maps.R"))
+
+# GPBoost. (Robustness check with Gaussian Process Boosting. use a fast machine, will take many hours)
+# source(here("code/gpboost.R")) # uncomment this line.
+```
+
+
+# Printing results / graphs etc.
+```{r}
+source(here("code/helper_functions.R"))
+
+# Variation explained by country fixed effects and by individuals' demographics.
+var_explained(verbose = FALSE) # toggle to true for regression summary
+
+
+# Analyse the Principal Component & Return Scree Plot.
+qp <- scree_plot()
+qp
+
+
+# Compare XGBoost's prediction accuracy on the full dataset, and on the centre-most variables only. 
+compare_performance()
+
+
+# XGBoost Summary Stats
+load(here("intermediate_data/cluster_xgb.RData"))
+
+print(paste0("XGBoost R-squared: ", round(rsq,2)))
+print(paste0("XGBoost RMSE: ", round(RMSE,2)))
+print(paste0("Surrogate tree R-squared: ", round(rp.rsq,2)))
+print(paste0("Surrogate tree RMSE: ", round(rp.wrmse,2)))
+
+
+# Other Features in the Most Important Clusters (note that only the heritage measures are clustered).
+other_features()
+
+
+# The dendrogram
+ddgm <- dendrogram()
+ddgm
+```
+
+
+# Lasso regression
+Run this last, it requires different package versions, so you need to rerun groundhog (perhaps multiple times, to remove all conflicts).
+```{r}
+groundhog.date <-'2022-10-09' # The versions i was originally using.
+library(groundhog)
+pkgs <- c('reshape', 'xtable','broom', 'psych', 'caret', 'vip', 'glmnet', 'janitor', 'schrute', 'tidyverse', 'tidymodels', 'here', 'tidyr', 'dplyr')
+groundhog.library(pkgs,groundhog.date)
+
+# Lasso. (the lasso regressions)
+source("code/lasso.R")
+rm(list = ls())
+```
