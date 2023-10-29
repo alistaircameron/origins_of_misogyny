@@ -2,3 +2,4 @@ raw_data/
 intermediate_data/
 graphs/
 .DS_Store
+.Rhistory
